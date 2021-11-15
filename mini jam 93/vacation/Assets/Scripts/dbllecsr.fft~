@@ -1,0 +1,146 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Video;
+using UnityEngine.UI;
+
+public class GameManager : MonoBehaviour
+{
+    public float stress = 0f;
+    public float productivity = 100f;
+    public float coffee = 100f;
+    public float minTime = 30f, maxTime = 60f;
+    public bool gaming = false;
+    public bool drinking = false;
+    public bool forcedGaming = false;
+
+    public Transform bossSpawn;
+
+    public GameObject boss;
+
+    public MeshRenderer screen;
+
+    public Material baseMat, vidMat;
+    public VideoPlayer videoPlayer;
+
+    public Slider coffeeSlider, productivitySlider, stressSlider;
+
+    private WaitForSeconds coffeeWait = new WaitForSeconds(3f);
+    private WaitForSeconds productivityWait = new WaitForSeconds(0.5f);
+
+    public void UpdateCoffee(float nc)
+    {
+        coffee = Mathf.Clamp(nc, 0f, 100f);
+        coffeeSlider.value = coffee;
+        if (coffee == 0f) Drink(false);
+    }
+
+    public void UpdateProductivity(float np)
+    {
+        productivity = Mathf.Clamp(np, 0f, 100f);
+        productivitySlider.value = productivity;
+        if (productivity == 0)
+        {
+            Lose();
+        }
+    }
+    public void UpdateStress(float ns)
+    {
+        stress = Mathf.Clamp(ns, 0f, 100f);
+        stressSlider.value = stress;
+        if (!forcedGaming && stress >= 80f) 
+        {
+            forcedGaming = true;
+            Game(true);
+        }
+        if(forcedGaming && stress < 30f)
+        {
+            forcedGaming = false;
+            Game(false);
+        }
+    }
+
+    public void Game(bool start)
+    {
+        if (start && !gaming)
+        {
+            gaming = true;
+            screen.material = vidMat;
+            videoPlayer.Play();
+        }
+        else if (!forcedGaming && gaming)
+        {
+            gaming = false;
+            screen.material = baseMat;
+            videoPlayer.Pause();
+        }
+    }
+
+    public void Drink(bool start)
+    {
+        if (start && !drinking && coffee > 10f)
+        {
+            drinking = true;
+        }
+        else if(!start && drinking)
+        {
+            drinking = false;
+        }
+    }
+
+    public void Lose()
+    {
+
+    }
+
+    private void FixedUpdate()
+    {
+        if (gaming) UpdateStress(stress - 0.001f);
+        if (drinking)
+        {
+            UpdateCoffee(coffee - 0.001f);
+            UpdateStress(stress - 0.0001f);
+        }
+    }
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.X))
+        {
+            //Debug.Log(gaming);
+            Game(!gaming);
+        }
+        if (Input.GetKeyDown(KeyCode.C))
+        {
+            Drink(!drinking);
+        }
+    }
+    private void Start()
+    {
+        StartCoroutine(CoffeeRecharge());
+        StartCoroutine(ProductivityDecrease());
+        StartCoroutine(SendBoss(5f));
+    }
+
+    private IEnumerator CoffeeRecharge()
+    {
+        yield return coffeeWait;
+        if(!drinking) UpdateCoffee(coffee + 1);
+        StartCoroutine(CoffeeRecharge());
+    }
+
+    private IEnumerator ProductivityDecrease()
+    {
+        yield return productivityWait;
+        UpdateProductivity(productivity - 0.5f);
+        StartCoroutine(CoffeeRecharge());
+    }
+
+    private IEnumerator SendBoss(float time)
+    {
+        yield return new WaitForSeconds(time);
+        Instantiate(boss, bossSpawn.position, bossSpawn.rotation);
+        StartCoroutine(SendBoss(Random.Range(minTime, maxTime)));
+        maxTime = Mathf.Clamp(maxTime - 5f, 30f, 60f);
+        minTime = Mathf.Clamp(minTime - 5f, 15f, 60f);
+    }
+}
